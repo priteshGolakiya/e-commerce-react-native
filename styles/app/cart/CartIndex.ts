@@ -232,6 +232,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
     },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#f5f5f5",
+    },
+    lottieAnimation: {
+        width: 150,
+        height: 150,
+    },
 });
 
 

@@ -161,11 +161,14 @@ const Search = () => {
     debouncedSearch(text, filters, 1);
   };
 
+
+
   const handleFilterChange = (filterUpdates: Partial<FilterState>) => {
     const newFilters = { ...filters, ...filterUpdates };
     setFilters(newFilters);
     setCurrentPage(1);
     debouncedSearch(searchQuery, newFilters, 1);
+    setShowFilters(false);
   };
 
   const onRefresh = useCallback(async () => {

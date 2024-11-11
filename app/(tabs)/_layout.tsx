@@ -5,11 +5,10 @@ import React from "react";
 
 const TabsLayout = () => {
   return (
-    <Tabs initialRouteName="(home)">
+    <Tabs initialRouteName="(apptwo)">
       <Tabs.Screen
-        name="(home)"
+        name="(apptwo)"
         options={{
-          header: () => <ExploreHeader />,
           tabBarLabel: "Home",
           headerShown: false,
           tabBarIcon: ({ color, size }) => (

@@ -11,72 +11,128 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  Easing,
 } from "react-native-reanimated";
 import Carousel from "react-native-reanimated-carousel";
+import { LinearGradient } from "expo-linear-gradient";
+
+// Interfaces remain the same
+interface Product {
+  _id: string;
+  name: string;
+  brand: string;
+  description: string;
+  price: number;
+  discountPrice: number;
+  stock: number;
+  images: string[];
+  category: Category;
+  subcategory: Subcategory;
+  finalPrice: number;
+  offers: string;
+  deliveryOptions: string;
+  averageRating: number;
+  reviews: Review[];
+  id: string;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  subcategories: string[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  id: string;
+}
+
+interface Subcategory {
+  _id: string;
+  name: string;
+  category: string;
+  products: any[];
+  __v: number;
+  id: string;
+}
+
+interface Review {
+  user: string;
+  product: string;
+  rating: number;
+  review: string;
+  date: Date;
+}
 
 interface ModernCarouselProps {
   autoPlay?: boolean;
   autoPlayInterval?: number;
+  item: Product[];
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CAROUSEL_HEIGHT = SCREEN_HEIGHT * 0.5;
-const PAGE_WIDTH = SCREEN_WIDTH * 0.93;
-const PAGE_HEIGHT = CAROUSEL_HEIGHT * 0.85;
-
-const data = [
-  {
-    id: 1,
-    title: "Beautiful Landscapes",
-    description: "Explore stunning natural wonders around the world",
-    image: "https://picsum.photos/1920/1080?random",
-  },
-  {
-    id: 2,
-    title: "Urban Adventures",
-    description: "Discover exciting city life and architecture",
-    image: "https://picsum.photos/1920/1080?random",
-  },
-  {
-    id: 3,
-    title: "Cultural Heritage",
-    description: "Experience rich traditions and historical sites",
-    image: "https://picsum.photos/1920/1080?random",
-  },
-];
+const PAGE_WIDTH = SCREEN_WIDTH * 0.92;
+const PAGE_HEIGHT = CAROUSEL_HEIGHT * 0.88;
 
 const ModernCarousel: React.FC<ModernCarouselProps> = ({
   autoPlay = true,
   autoPlayInterval = 3000,
+  item,
 }) => {
-  const renderItem = ({ item, animationValue }: any) => {
-    const animatedStyle = useAnimatedStyle(() => {
-      const scale = interpolate(
-        animationValue.value,
-        [-1, 0, 1],
-        [0.9, 1, 0.9]
-      );
-      const opacity = interpolate(
-        animationValue.value,
-        [-1, 0, 1],
-        [0.5, 1, 0.5]
-      );
+  const formatPrice = (price: number) => {
+    return `₹${price.toLocaleString("en-IN")}`;
+  };
 
-      return {
-        transform: [{ scale: withSpring(scale) }],
-        opacity: withSpring(opacity),
-      };
-    });
+  const renderItem = ({ item, animationValue }: any) => {
+    
+
+    const discountPercentage = Math.round(
+      ((item.price - item.discountPrice) / item.price) * 100
+    );
 
     return (
-      <Animated.View style={[styles.carouselItem, animatedStyle]}>
+      <Animated.View style={[styles.carouselItem]}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: item.image }} style={styles.image} />
-          <View style={styles.overlay} />
+          <Image
+            source={{ uri: item.images[0] }}
+            style={styles.image}
+            resizeMode="contain"
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]}
+            style={styles.gradient}
+          />
+          {discountPercentage > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{discountPercentage}% OFF</Text>
+            </View>
+          )}
         </View>
         <View style={styles.contentContainer}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          <View style={styles.categoryContainer}>
+            <Text style={styles.categoryName}>{item.category.name}</Text>
+            {item.brand && <Text style={styles.brand}>{item.brand}</Text>}
+          </View>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>{formatPrice(item.discountPrice)}</Text>
+            {item.price !== item.discountPrice && (
+              <Text style={styles.originalPrice}>
+                {formatPrice(item.price)}
+              </Text>
+            )}
+          </View>
+          {item.stock < 10 && item.stock > 0 && (
+            <Text style={styles.stockWarning}>
+              Only {item.stock} left in stock!
+            </Text>
+          )}
         </View>
       </Animated.View>
     );
@@ -89,14 +145,14 @@ const ModernCarousel: React.FC<ModernCarouselProps> = ({
         width={PAGE_WIDTH}
         height={PAGE_HEIGHT}
         autoPlay={autoPlay}
-        data={data}
-        scrollAnimationDuration={1000}
+        data={item}
+        scrollAnimationDuration={1200}
         autoPlayInterval={autoPlayInterval}
         renderItem={renderItem}
         mode="parallax"
         modeConfig={{
-          parallaxScrollingScale: 0.9,
-          parallaxScrollingOffset: 50,
+          parallaxScrollingScale: 0.85,
+          parallaxScrollingOffset: 60,
         }}
         style={styles.carousel}
       />
@@ -120,7 +176,7 @@ const styles = StyleSheet.create({
   carouselItem: {
     width: PAGE_WIDTH,
     height: PAGE_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "white",
     overflow: "hidden",
     ...Platform.select({
@@ -128,19 +184,45 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOffset: {
           width: 0,
-          height: 2,
+          height: 4,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 5,
+        elevation: 8,
       },
     }),
   },
+  categoryContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  brand: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#888",
+    fontStyle: "italic",
+  },
+  productName: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#222",
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
   imageContainer: {
     width: "100%",
-    height: "70%",
+    height: "65%",
     position: "relative",
   },
   image: {
@@ -148,25 +230,56 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
-  overlay: {
+  gradient: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    height: "100%",
   },
   contentContainer: {
-    padding: 20,
-    height: "30%",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
+    padding: 16,
+    height: "35%",
+    justifyContent: "space-between",
   },
   description: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#666",
-    lineHeight: 22,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  price: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#2C3E50",
+    marginRight: 8,
+  },
+  originalPrice: {
+    fontSize: 18,
+    color: "#999",
+    textDecorationLine: "line-through",
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#E74C3C",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  discountText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  stockWarning: {
+    color: "#E74C3C",
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 4,
   },
 });
 

@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   StyleSheet,
   View,
   SafeAreaView,
   FlatList,
   Platform,
+  Animated,
+  RefreshControl,
+  StatusBar,
 } from "react-native";
 import axios from "axios";
 import { BASE_URL } from "@/utils/apiConfig";
@@ -12,6 +15,7 @@ import ModernCarousel from "@/components/home/Carousel";
 import ProductList from "@/components/home/ProductList";
 import LottieView from "lottie-react-native";
 
+// Interfaces remain the same
 interface Product {
   _id: string;
   name: string;
@@ -58,13 +62,48 @@ interface Review {
   date: Date;
 }
 
-interface ProductListProps {
-  product: Product;
-}
+// Separate Product Item Component
+const ProductItem = React.memo(
+  ({ item, index }: { item: Product; index: number }) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const translateY = useRef(new Animated.Value(50)).current;
+
+    useEffect(() => {
+      Animated.sequence([
+        Animated.delay(index * 100),
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    }, [index]);
+
+    return (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY }],
+        }}
+      >
+        <ProductList product={item} />
+      </Animated.View>
+    );
+  }
+);
 
 const HomePage = () => {
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const fetchProducts = async () => {
     try {
@@ -82,6 +121,7 @@ const HomePage = () => {
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -89,11 +129,26 @@ const HomePage = () => {
     fetchProducts();
   }, []);
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <ProductList product={item} />
-  );
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProducts();
+  };
 
-  const ItemSeparatorComponent = () => <View style={styles.separator} />;
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 500],
+    outputRange: [350, 350],
+    extrapolate: "clamp",
+  });
+
+  const carouselOpacity = scrollY.interpolate({
+    inputRange: [0, 200],
+    outputRange: [1, 0.8],
+    extrapolate: "clamp",
+  });
+
+  const renderProduct = ({ item, index }: { item: Product; index: number }) => (
+    <ProductItem item={item} index={index} />
+  );
 
   if (loading) {
     return (
@@ -111,10 +166,24 @@ const HomePage = () => {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
         ListHeaderComponent={() => (
-          <View style={styles.carouselContainer}>
-            <ModernCarousel autoPlay={true} autoPlayInterval={4000} />
-          </View>
+          <Animated.View
+            style={[
+              styles.carouselContainer,
+              { height: headerHeight, opacity: carouselOpacity },
+            ]}
+          >
+            <ModernCarousel
+              autoPlay={true}
+              autoPlayInterval={3000}
+              item={products}
+            />
+          </Animated.View>
         )}
         data={products}
         renderItem={renderProduct}
@@ -122,12 +191,20 @@ const HomePage = () => {
         numColumns={2}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
-        ItemSeparatorComponent={ItemSeparatorComponent}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
         initialNumToRender={6}
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={Platform.OS === "android"}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#007AFF"
+            colors={["#007AFF"]}
+          />
+        }
       />
     </SafeAreaView>
   );
@@ -139,27 +216,39 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   carouselContainer: {
-    height: 400,
+    overflow: "hidden",
     marginBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   separator: {
-    height: 10,
+    height: 15,
   },
   listContent: {
-    padding: 10,
+    padding: 12,
     paddingBottom: 20,
   },
   columnWrapper: {
     justifyContent: "space-between",
+    gap: 12,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f5f5f5",
   },
   lottieAnimation: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
   },
 });
 
